@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <title>Ticket Booking App</title>
+  <script src="https://apis.google.com/js/api.js"></script>
+  <style>
+    body { font-family: Arial; padding: 20px; }
+    .section { margin-bottom: 20px; }
+    select, button { padding: 8px; margin: 5px 0; }
+    #seats-container button { margin: 4px; padding: 6px 10px; }
+  </style>
+</head>
+<body>
+  <h2>Seat Booking System</h2>
+
+  <div class="section">
+    <label>Category:</label>
+    <select id="category" onchange="loadRows()">
+      <option value="">Select Category</option>
+      <option value="Alpha">Alpha</option>
+      <option value="Beta">Beta</option>
+      <option value="Gamma">Gamma</option>
+    </select>
+  </div>
+
+  <div class="section">
+    <label>Row:</label>
+    <select id="row" onchange="loadSeats()"></select>
+  </div>
+
+  <div id="seats-container" class="section"></div>
+
+  <button onclick="confirmBooking()">Confirm Booking</button>
+
+<script>
+// --- Seat structure ---
+const seatStructure = {
+  Alpha: getRows("A", "J", 28, 32),
+  Beta: getRows("K", "R", 38, 40),
+  Gamma: getRows("S", "X", 40, 42)
+};
+
+function getRows(start, end, min, max) {
+  let rows = {}; let s = start.charCodeAt(0); let e = end.charCodeAt(0);
+  for (let c = s; c <= e; c++) {
+    let count = Math.floor(Math.random() * (max - min + 1)) + min;
+    rows[String.fromCharCode(c)] = {
+      total: count,
+      booked: []
+    };
+  }
+  return rows;
+}
+
+// ------------------------- Load Rows -------------------------
+function loadRows() {
+  let cat = document.getElementById("category").value;
+  let rowSelect = document.getElementById("row");
+  rowSelect.innerHTML = "";
+
+  if (!cat) return;
+
+  Object.keys(seatStructure[cat]).forEach(r => {
+    if (seatStructure[cat][r].booked.length < seatStructure[cat][r].total) {
+      let opt = document.createElement("option");
+      opt.value = r;
+      opt.textContent = r;
+      rowSelect.appendChild(opt);
+    }
+  });
+}
+
+// ------------------------- Load Seats -------------------------
+function loadSeats() {
+  let cat = document.getElementById("category").value;
+  let row = document.getElementById("row").value;
+  let container = document.getElementById("seats-container");
+  container.innerHTML = "";
+
+  if (!cat || !row) return;
+
+  let data = seatStructure[cat][row];
+
+  for (let i = 1; i <= data.total; i++) {
+    let btn = document.createElement("button");
+    btn.textContent = i;
+    btn.disabled = data.booked.includes(i);
+    btn.onclick = () => btn.classList.toggle("selected");
+    container.appendChild(btn);
+  }
+}
+
+// ------------------------- Confirm Booking -------------------------
+function confirmBooking() {
+  let cat = document.getElementById("category").value;
+  let row = document.getElementById("row").value;
+  if (!cat || !row) return alert("Select category and row.");
+
+  let selected = [...document.querySelectorAll('#seats-container .selected')]
+                    .map(btn => Number(btn.textContent));
+
+  if (selected.length === 0) return alert("Select seats.");
+
+  seatStructure[cat][row].booked.push(...selected);
+
+  if (seatStructure[cat][row].booked.length >= seatStructure[cat][row].total) {
+    delete seatStructure[cat][row]; // Remove full row
+    loadRows();
+  }
+
+  loadSeats();
+  alert("Booking Confirmed!");
+}
+</script>
+<script>
+// --- Email Sending using Google Apps Script Web App ---
+async function sendEmail(userEmail, category, row, seats) {
+  const payload = { email: userEmail, category, row, seats };
+  await fetch("https://script.google.com/macros/s/AKfycbyaIHgw6-uLFIIY8EcT4WpI_9B5XFfsVF_s57pTG0PwIG2Rh8LtXKa08F3jKGxO4ytB/exec", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload)
+  });
+}
+
+async function confirmBooking() {
+  let cat = document.getElementById("category").value;
+  let row = document.getElementById("row").value;
+  if (!cat || !row) return alert("Select category and row.");
+
+  let selected = [...document.querySelectorAll('#seats-container .selected')]
+                    .map(btn => Number(btn.textContent));
+
+  if (selected.length === 0) return alert("Select seats.");
+
+  let userEmail = prompt("Enter your email address for confirmation:");
+  if (!userEmail) return alert("Email required.");
+
+  seatStructure[cat][row].booked.push(...selected);
+
+  if (seatStructure[cat][row].booked.length >= seatStructure[cat][row].total) {
+    delete seatStructure[cat][row];
+    loadRows();
+  }
+
+  loadSeats();
+  alert("Booking Confirmed! Email will be sent.");
+
+  await sendEmail(userEmail, cat, row, selected);
+}
+</script>
+</body>
+</html>
